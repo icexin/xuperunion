@@ -28,6 +28,7 @@ import (
 	"github.com/xuperchain/xuperunion/contract/kernel"
 	"github.com/xuperchain/xuperunion/contract/native"
 	"github.com/xuperchain/xuperunion/contract/proposal"
+	"github.com/xuperchain/xuperunion/contract/sql"
 	"github.com/xuperchain/xuperunion/contract/wasm"
 	"github.com/xuperchain/xuperunion/crypto/account"
 	crypto_client "github.com/xuperchain/xuperunion/crypto/client"
@@ -280,6 +281,7 @@ func (xc *XChainCore) Init(bcname string, xlog log.Logger, cfg *config.NodeConfi
 	}
 
 	xbridge.RegisterExecutor("wasm", wasmvm)
+	xbridge.RegisterExecutor("sql", sql.NewSQLVM())
 	xbridge.RegisterToXCore(xc.Utxovm.RegisterVM3)
 
 	// 统一注册xuper3合约虚拟机

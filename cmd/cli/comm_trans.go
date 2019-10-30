@@ -359,6 +359,9 @@ func (c *CommTrans) Transfer(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// ttx := FromPBTx(tx)
+	// out, _ := json.MarshalIndent(ttx, "", "  ")
+	// fmt.Println(string(out))
 
 	return c.SendTx(ctx, tx)
 }

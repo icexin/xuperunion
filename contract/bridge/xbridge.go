@@ -2,6 +2,8 @@ package bridge
 
 import (
 	"github.com/xuperchain/xuperunion/contract"
+	"github.com/xuperchain/xuperunion/sql/sqlite3"
+	"github.com/xuperchain/xuperunion/sql/vfs/xfs"
 )
 
 // Executor 为用户态虚拟机工厂类
@@ -34,6 +36,7 @@ type XBridge struct {
 func New() *XBridge {
 	ctxmgr := NewContextManager()
 	syscallService := NewSyscallService(ctxmgr)
+	sqlite3.RegisterVFS("xfs", xfs.NewFileSystem(newXfsDB(ctxmgr)))
 	return &XBridge{
 		ctxmgr:         ctxmgr,
 		syscallService: syscallService,

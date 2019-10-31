@@ -113,6 +113,9 @@ func (c *SQLCommand) query(sql string) error {
 		"sql": []byte(sql),
 	}
 	resps, reqs, err := ct.GenPreExeRes(context.TODO())
+	if err != nil {
+		return err
+	}
 	var resp *pb.ContractResponse
 	for i := range reqs {
 		if reqs[i].GetContractName() == c.contract {
@@ -136,7 +139,7 @@ func (c *SQLCommand) query(sql string) error {
 		fmt.Fprintf(w, "%s\n", strings.Join(rowslice, "\t"))
 	}
 	w.Flush()
-	return err
+	return nil
 }
 
 func (c *SQLCommand) invoke(sql string) error {

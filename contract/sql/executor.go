@@ -33,36 +33,52 @@ type instance struct {
 
 // Exec根据ctx里面的参数执行合约代码
 func (i *instance) Exec() error {
+	body, err := i.exec()
+	if err != nil {
+		i.ctx.Output = &pb.Response{
+			Status:  500,
+			Message: err.Error(),
+		}
+		return nil
+	}
+	i.ctx.Output = &pb.Response{
+		Status: 200,
+		Body:   body,
+	}
+	return nil
+}
+
+func (i *instance) exec() ([]byte, error) {
 	dbname, ok := i.ctx.Args["db"]
 	if !ok {
-		return errors.New("missing db name")
+		return nil, errors.New("missing db name")
 	}
 	sqlstr, ok := i.ctx.Args["sql"]
 	if !ok {
-		return errors.New("missing sql")
+		return nil, errors.New("missing sql")
 	}
 	uri := fmt.Sprintf("file:%s?vfs=xfs&ctx=%d", dbname, i.ctx.ID)
 	conn, err := sqlite3.Open(uri)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn.Close()
 
 	err = conn.Exec("PRAGMA journal_mode=MEMORY")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = conn.Exec("PRAGMA temp_store=MEMORY")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	stmt, err := conn.Prepare(string(sqlstr))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if stmt == nil {
-		return errors.New("nothing to do")
+		return nil, errors.New("nothing to do")
 	}
 	defer stmt.Close()
 
@@ -72,7 +88,7 @@ func (i *instance) Exec() error {
 	for {
 		hasRow, err := stmt.Step()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !hasRow {
 			break
@@ -93,11 +109,8 @@ func (i *instance) Exec() error {
 		result = append(result, row)
 	}
 	body, _ := json.Marshal(result)
-	i.ctx.Output = &pb.Response{
-		Status: 200,
-		Body:   body,
-	}
-	return nil
+
+	return body, nil
 }
 
 // ResourceUsed returns the resource used by contract

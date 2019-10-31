@@ -61,10 +61,14 @@ func (i *instance) Exec() error {
 	if err != nil {
 		return err
 	}
+	if stmt == nil {
+		return errors.New("nothing to do")
+	}
 	defer stmt.Close()
 
-	var result []map[string]interface{}
+	var result []interface{}
 	names := stmt.ColumnNames()
+	result = append(result, names)
 	for {
 		hasRow, err := stmt.Step()
 		if err != nil {
@@ -73,18 +77,17 @@ func (i *instance) Exec() error {
 		if !hasRow {
 			break
 		}
-		row := make(map[string]interface{})
+		row := make([]interface{}, stmt.ColumnCount())
 		for i := 0; i < stmt.ColumnCount(); i++ {
-			name := names[i]
 			switch stmt.ColumnType(i) {
 			case sqlite3.INTEGER:
-				row[name], _, _ = stmt.ColumnInt(i)
+				row[i], _, _ = stmt.ColumnInt(i)
 			case sqlite3.FLOAT:
-				row[name], _, _ = stmt.ColumnDouble(i)
+				row[i], _, _ = stmt.ColumnDouble(i)
 			case sqlite3.TEXT:
-				row[name], _, _ = stmt.ColumnText(i)
+				row[i], _, _ = stmt.ColumnText(i)
 			case sqlite3.NULL:
-				row[name] = nil
+				row[i] = nil
 			}
 		}
 		result = append(result, row)

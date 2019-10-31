@@ -47,6 +47,7 @@ type CommTrans struct {
 	Output     string
 	IsQuick    bool
 	IsPrint    bool
+	AutoFee    bool
 
 	ChainName    string
 	Keys         string
@@ -188,6 +189,9 @@ func (c *CommTrans) GenRawTx(ctx context.Context, desc []byte, preExeRes *pb.Inv
 	var gasUsed int64
 	if preExeRes != nil {
 		gasUsed = preExeRes.GasUsed
+		if c.AutoFee {
+			c.Fee = strconv.FormatInt(preExeRes.GasUsed, 10)
+		}
 		fmt.Printf("The gas you cousume is: %v\n", gasUsed)
 	}
 	txOutputs, totalNeed, err := c.GenTxOutputs(gasUsed)
@@ -359,9 +363,6 @@ func (c *CommTrans) Transfer(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// ttx := FromPBTx(tx)
-	// out, _ := json.MarshalIndent(ttx, "", "  ")
-	// fmt.Println(string(out))
 
 	return c.SendTx(ctx, tx)
 }

@@ -7,12 +7,15 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/xuperchain/xuperunion/pb"
 	"github.com/xuperchain/xuperunion/utxo"
 )
 
@@ -57,8 +60,11 @@ xchain wasm sql $sql'
 }
 
 func (c *SQLCommand) runloop(r io.Reader) error {
+	fmt.Printf("XuperChain SQL client version %s\n", xchainVersion())
+	fmt.Printf("Connected to xchain node, contract:%s database:%s\n", c.contract, c.dbname)
 	scanner := bufio.NewScanner(r)
-	fmt.Print("> ")
+	prompt := "xsql> "
+	fmt.Print(prompt)
 	var sql string
 	for scanner.Scan() {
 		txt := strings.TrimSpace(scanner.Text())
@@ -68,7 +74,7 @@ func (c *SQLCommand) runloop(r io.Reader) error {
 			sql = sql + "\n" + txt
 		}
 		if !strings.HasSuffix(txt, ";") {
-			fmt.Print(". ")
+			fmt.Print("   . ")
 			continue
 		}
 		err := c.run(sql)
@@ -76,12 +82,15 @@ func (c *SQLCommand) runloop(r io.Reader) error {
 			fmt.Println(err)
 		}
 		sql = ""
-		fmt.Print("> ")
+		fmt.Print(prompt)
 	}
 	return nil
 }
 
 func (c *SQLCommand) run(sql string) error {
+	if sql == "" {
+		return nil
+	}
 	if strings.HasPrefix(sql, "select") || strings.HasPrefix(sql, "SELECT") {
 		return c.query(sql)
 	}
@@ -103,13 +112,36 @@ func (c *SQLCommand) query(sql string) error {
 		"db":  []byte(c.dbname),
 		"sql": []byte(sql),
 	}
-	_, _, err := ct.GenPreExeRes(context.TODO())
+	resps, reqs, err := ct.GenPreExeRes(context.TODO())
+	var resp *pb.ContractResponse
+	for i := range reqs {
+		if reqs[i].GetContractName() == c.contract {
+			resp = resps.GetResponse().GetResponses()[i]
+		}
+	}
+	if resp == nil {
+		return nil
+	}
+	var result [][]interface{}
+	err = json.Unmarshal(resp.GetBody(), &result)
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	for _, row := range result {
+		var rowslice []string
+		for _, elem := range row {
+			rowslice = append(rowslice, fmt.Sprintf("%v", elem))
+		}
+		fmt.Fprintf(w, "%s\n", strings.Join(rowslice, "\t"))
+	}
+	w.Flush()
 	return err
 }
 
 func (c *SQLCommand) invoke(sql string) error {
 	ct := &CommTrans{
-		Fee:          "15000",
+		AutoFee:      true,
 		FrozenHeight: 0,
 		Version:      utxo.TxVersion,
 		ModuleName:   "sql",

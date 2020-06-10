@@ -67,7 +67,9 @@ func (c *contractManager) DeployContract(contextConfig *contract.ContextConfig, 
 	}
 	cp := newCodeProvider(store)
 	instance, err := creator.CreateInstance(&Context{
+		Cache:          store,
 		ContractName:   contractName,
+		Method:         "initialize",
 		ResourceLimits: contextConfig.ResourceLimits,
 	}, cp)
 	if err != nil {
@@ -188,6 +190,8 @@ func getContractType(desc *pb.WasmCodeDesc) (ContractType, error) {
 		return TypeWasm, nil
 	case "native":
 		return TypeNative, nil
+	case "evm":
+		return TypeEvm, nil
 	default:
 		return "", fmt.Errorf("unknown contract type:%s", desc.ContractType)
 	}

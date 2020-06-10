@@ -6,12 +6,14 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 
+	"github.com/xuperchain/xuperchain/core/contract/bridge"
 	"github.com/xuperchain/xuperchain/core/pb"
 	"github.com/xuperchain/xuperchain/core/utxo"
 )
@@ -30,6 +32,7 @@ type ContractDeployCommand struct {
 	isMulti      bool
 	multiAddrs   string
 	output       string
+	abi          string
 }
 
 // NewContractDeployCommand new wasm deploy cmd
@@ -59,6 +62,9 @@ func (c *ContractDeployCommand) addFlags() {
 	c.cmd.Flags().BoolVarP(&c.isMulti, "isMulti", "m", false, "multisig scene")
 	c.cmd.Flags().StringVarP(&c.multiAddrs, "multiAddrs", "A", "data/acl/addrs", "multiAddrs if multisig scene")
 	c.cmd.Flags().StringVarP(&c.output, "output", "o", "./tx.out", "tx draw data")
+	if c.module == string(bridge.TypeEvm) {
+		c.cmd.Flags().StringVarP(&c.abi, "abi", "", "", "the abi file of contract")
+	}
 }
 
 func (c *ContractDeployCommand) deploy(ctx context.Context, codepath string) error {
@@ -93,15 +99,30 @@ func (c *ContractDeployCommand) deploy(ctx context.Context, codepath string) err
 	if err != nil {
 		return err
 	}
-	x3args, err := convertToXuper3Args(args)
-	if err != nil {
-		return err
-	}
-	initArgs, _ := json.Marshal(x3args)
+
 	codebuf, err := ioutil.ReadFile(codepath)
 	if err != nil {
 		return err
 	}
+	var x3args map[string][]byte
+	if c.module == string(bridge.TypeEvm) {
+		x3args, err = convertToEvmArgs(c.abi, "", args)
+		if err != nil {
+			return err
+		}
+		codebuf, err = hex.DecodeString(string(codebuf))
+		if err != nil {
+			return err
+		}
+		codebuf = append(codebuf, x3args["input"]...)
+	} else {
+		x3args, err = convertToXuper3Args(args)
+		if err != nil {
+			return err
+		}
+	}
+
+	initArgs, _ := json.Marshal(x3args)
 	descbuf := c.prepareCodeDesc()
 	ct.Args = map[string][]byte{
 		"account_name":  []byte(c.account),
